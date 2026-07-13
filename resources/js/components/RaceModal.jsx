@@ -199,8 +199,6 @@ export default function RaceModal({ event, category, onClose }) {
                                 {circuit.length_km && <StatBox label="Comprimento" value={`${circuit.length_km} km`} />}
                                 {event.laps && <StatBox label="Voltas" value={event.laps} />}
                                 {circuit.number_of_turns && <StatBox label="Curvas" value={circuit.number_of_turns} />}
-                                {circuit.drs_zones > 0 && <StatBox label="Zonas DRS" value={circuit.drs_zones} />}
-                                {circuit.type && <StatBox label="Tipo" value={circuit.type} />}
                                 {circuit.first_event_year && <StatBox label="1ª Edição" value={circuit.first_event_year} />}
                             </div>
                             {circuit.lap_record && (

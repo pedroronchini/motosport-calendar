@@ -23,8 +23,6 @@ class CircuitResource extends JsonResource
             'city' => $this->city,
             'length_km' => $this->length_km,
             'number_of_turns' => $this->number_of_turns,
-            'drs_zones' => $this->drs_zones,
-            'type' => $this->type,
             'first_event_year' => $this->first_event_year,
             'lap_record' => $this->lap_record_ms ? [
                 'time' => $this->lap_record_formatted,

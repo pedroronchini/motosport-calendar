@@ -18,8 +18,6 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'lap_record_holder',
     'lap_record_year',
     'number_of_turns',
-    'drs_zones',
-    'type',
     'first_event_year',
     'latitude',
     'longitude',

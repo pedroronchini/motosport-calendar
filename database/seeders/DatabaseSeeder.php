@@ -23,5 +23,6 @@ class DatabaseSeeder extends Seeder
         ]);
 
         $this->call(F1Seeder::class);
+        $this->call(CircuitDetailsSeeder::class);
     }
 }
