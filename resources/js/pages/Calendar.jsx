@@ -1,19 +1,16 @@
 import { useParams, useNavigate } from 'react-router-dom';
-import { useState } from 'react';
-import { categories } from '../data/categories';
-import { getCalendar, AVAILABLE_YEARS, CURRENT_YEAR } from '../data/seasons';
-import { getCircuitImage } from '../data/circuitImages';
+import { useEffect, useState } from 'react';
+import { useYears } from '../context/YearsContext';
+import { fetchCategories, fetchCalendar } from '../api/client';
 import Header from '../components/Header';
 import RaceModal from '../components/RaceModal';
 
-function formatDate(dateStr) {
-    const d = new Date(dateStr + 'T12:00:00');
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
+function formatDate(iso) {
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-function formatShortDate(dateStr) {
-    const d = new Date(dateStr + 'T12:00:00');
-    return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+function formatShortDate(iso) {
+    return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
 }
 
 function CircuitPlaceholder() {
@@ -25,10 +22,24 @@ function CircuitPlaceholder() {
 }
 
 function StatusBadge({ status }) {
-    if (status === 'completed') {
+    if (status === 'finished') {
         return (
             <span className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-400">
                 Realizada
+            </span>
+        );
+    }
+    if (status === 'cancelled') {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full bg-red-950 px-2 py-0.5 text-xs font-medium text-red-400">
+                Cancelada
+            </span>
+        );
+    }
+    if (status === 'postponed') {
+        return (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-950 px-2 py-0.5 text-xs font-medium text-amber-400">
+                Adiada
             </span>
         );
     }
@@ -40,9 +51,9 @@ function StatusBadge({ status }) {
     );
 }
 
-function RaceCard({ race, category, isNext, onClick }) {
+function RaceCard({ event, category, isNext, onClick }) {
     const [imgError, setImgError] = useState(false);
-    const circuitImageUrl = getCircuitImage(race.circuit);
+    const circuit = event.circuit;
 
     return (
         <div
@@ -50,7 +61,7 @@ function RaceCard({ race, category, isNext, onClick }) {
             className={`group relative flex flex-col rounded-2xl overflow-hidden border transition-all duration-200 cursor-pointer hover:scale-[1.02] hover:shadow-xl hover:shadow-black/40
                 ${isNext
                     ? 'border-zinc-600 bg-zinc-800/80 ring-1 ring-white/10'
-                    : race.status === 'completed'
+                    : event.status === 'finished'
                         ? 'border-zinc-800/60 bg-zinc-900/60 opacity-70'
                         : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'
                 }`}
@@ -74,38 +85,38 @@ function RaceCard({ race, category, isNext, onClick }) {
             <div className="p-4 flex flex-col gap-2 flex-1">
                 <div className="flex items-center justify-between">
                     <span className="font-mono text-xs text-zinc-500 font-bold">
-                        E{String(race.round).padStart(2, '0')}
+                        E{String(event.round).padStart(2, '0')}
                     </span>
-                    <StatusBadge status={race.status} />
+                    <StatusBadge status={event.status} />
                 </div>
 
                 <div className="flex items-center gap-2">
-                    <span className="text-2xl leading-none">{race.flag}</span>
+                    <span className="text-2xl leading-none">{circuit.flag}</span>
                     <span className="text-xs font-bold uppercase tracking-widest text-zinc-400 truncate">
-                        {race.country}
+                        {circuit.country}
                     </span>
                 </div>
 
                 <h3 className="font-black text-base leading-snug text-white line-clamp-2">
-                    {race.name}
+                    {event.name}
                 </h3>
 
-                <p className="text-xs text-zinc-500 truncate">{race.circuit}</p>
+                <p className="text-xs text-zinc-500 truncate">{circuit.name}</p>
 
                 <p
                     className="text-sm font-semibold mt-auto pt-1"
-                    style={{ color: race.status === 'upcoming' ? category.color : undefined }}
+                    style={{ color: event.status !== 'finished' ? category.color : undefined }}
                 >
-                    {formatDate(race.date)}
+                    {formatDate(event.starts_at)}
                 </p>
             </div>
 
             {/* Circuit image section */}
             <div className="h-36 bg-zinc-950/50 relative flex items-center justify-center overflow-hidden">
-                {circuitImageUrl && !imgError ? (
+                {circuit.map_image_url && !imgError ? (
                     <img
-                        src={circuitImageUrl}
-                        alt={race.circuit}
+                        src={circuit.map_image_url}
+                        alt={circuit.name}
                         onError={() => setImgError(true)}
                         className="w-full h-full object-contain p-4 transition-transform duration-500 group-hover:scale-110"
                         style={{ filter: 'brightness(0) invert(1) opacity(0.5)' }}
@@ -118,7 +129,7 @@ function RaceCard({ race, category, isNext, onClick }) {
 
                 {/* City label overlay */}
                 <div className="absolute bottom-2 right-3 text-xs text-zinc-600 font-medium">
-                    {race.city}
+                    {circuit.city}
                 </div>
             </div>
         </div>
@@ -129,16 +140,44 @@ export default function Calendar() {
     const { year, id } = useParams();
     const navigate = useNavigate();
     const yearNum = Number(year);
+    const { years, currentYear, loading: yearsLoading } = useYears();
 
-    const category = categories.find((c) => c.id === id);
-    const races = getCalendar(yearNum, id);
+    const [category, setCategory] = useState(undefined);
+    const [events, setEvents] = useState(undefined);
+    const [selectedEvent, setSelectedEvent] = useState(null);
 
-    if (!AVAILABLE_YEARS.includes(yearNum) || !category) {
+    useEffect(() => {
+        let cancelled = false;
+        fetchCategories().then((cats) => {
+            if (cancelled) return;
+            setCategory(cats.find((c) => c.slug === id) ?? null);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [id]);
+
+    useEffect(() => {
+        let cancelled = false;
+        setEvents(undefined);
+        fetchCalendar(id, yearNum).then((data) => !cancelled && setEvents(data));
+        return () => {
+            cancelled = true;
+        };
+    }, [id, yearNum]);
+
+    const yearIsKnown = years.length === 0 || years.includes(yearNum);
+
+    if (yearsLoading || category === undefined) {
+        return <div className="min-h-screen bg-zinc-950" />;
+    }
+
+    if (!yearIsKnown || !category) {
         return (
             <div className="min-h-screen bg-zinc-950 flex items-center justify-center text-white">
                 <div className="text-center">
                     <p className="text-zinc-400 mb-4">Categoria não encontrada.</p>
-                    <button onClick={() => navigate(`/${CURRENT_YEAR}`)} className="text-white underline hover:no-underline">
+                    <button onClick={() => navigate(`/${currentYear}`)} className="text-white underline hover:no-underline">
                         Voltar ao início
                     </button>
                 </div>
@@ -146,7 +185,11 @@ export default function Calendar() {
         );
     }
 
-    if (!races) {
+    if (events === undefined) {
+        return <div className="min-h-screen bg-zinc-950" />;
+    }
+
+    if (!events || events.length === 0) {
         return (
             <div className="min-h-screen bg-zinc-950 text-white">
                 <Header year={yearNum} backTo={`/${yearNum}`} backLabel="Categorias" />
@@ -159,12 +202,10 @@ export default function Calendar() {
         );
     }
 
-    const [selectedRace, setSelectedRace] = useState(null);
-
-    const completed = races.filter((r) => r.status === 'completed').length;
-    const upcoming = races.filter((r) => r.status === 'upcoming').length;
-    const nextRace = races.find((r) => r.status === 'upcoming');
-    const progress = Math.round((completed / races.length) * 100);
+    const completed = events.filter((e) => e.status === 'finished').length;
+    const upcoming = events.filter((e) => e.status !== 'finished').length;
+    const nextEvent = events.find((e) => e.status !== 'finished');
+    const progress = Math.round((completed / events.length) * 100);
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white">
@@ -204,7 +245,7 @@ export default function Calendar() {
 
                         <div className="flex gap-6 sm:gap-8">
                             {[
-                                { label: 'Etapas', value: races.length, color: 'text-white' },
+                                { label: 'Etapas', value: events.length, color: 'text-white' },
                                 { label: 'Realizadas', value: completed, color: 'text-zinc-400' },
                                 { label: 'Restantes', value: upcoming, color: undefined },
                             ].map(({ label, value, color }) => (
@@ -224,7 +265,7 @@ export default function Calendar() {
             </div>
 
             {/* Next race highlight */}
-            {nextRace && (
+            {nextEvent && (
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-2">
                     <div
                         className="rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center gap-4 border"
@@ -233,18 +274,18 @@ export default function Calendar() {
                             borderColor: category.color + '44',
                         }}
                     >
-                        <div className="text-4xl">{nextRace.flag}</div>
+                        <div className="text-4xl">{nextEvent.circuit.flag}</div>
                         <div className="flex-1">
                             <div className="text-xs font-bold uppercase tracking-widest mb-1" style={{ color: category.color }}>
-                                Próxima etapa · Rodada {nextRace.round}
+                                Próxima etapa · Rodada {nextEvent.round}
                             </div>
-                            <div className="text-xl font-black">{nextRace.name}</div>
-                            <div className="text-sm text-zinc-400">{nextRace.circuit} · {nextRace.city}, {nextRace.country}</div>
+                            <div className="text-xl font-black">{nextEvent.name}</div>
+                            <div className="text-sm text-zinc-400">{nextEvent.circuit.name} · {nextEvent.circuit.city}, {nextEvent.circuit.country}</div>
                         </div>
                         <div className="text-right sm:text-right">
-                            <div className="text-2xl font-black">{formatShortDate(nextRace.date)}</div>
+                            <div className="text-2xl font-black">{formatShortDate(nextEvent.starts_at)}</div>
                             <div className="text-xs text-zinc-500">
-                                {new Date(nextRace.date + 'T12:00:00').getFullYear()}
+                                {new Date(nextEvent.starts_at).getFullYear()}
                             </div>
                         </div>
                     </div>
@@ -254,13 +295,13 @@ export default function Calendar() {
             {/* Race card grid */}
             <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {races.map((race) => (
+                    {events.map((event) => (
                         <RaceCard
-                            key={race.round}
-                            race={race}
+                            key={event.id}
+                            event={event}
                             category={category}
-                            isNext={nextRace && race.round === nextRace.round}
-                            onClick={() => setSelectedRace(race)}
+                            isNext={nextEvent && event.round === nextEvent.round}
+                            onClick={() => setSelectedEvent(event)}
                         />
                     ))}
                 </div>
@@ -270,13 +311,11 @@ export default function Calendar() {
                 Motorsport Calendar &copy; {new Date().getFullYear()}
             </footer>
 
-            {selectedRace && (
+            {selectedEvent && (
                 <RaceModal
-                    race={selectedRace}
+                    event={selectedEvent}
                     category={category}
-                    categoryId={id}
-                    year={yearNum}
-                    onClose={() => setSelectedRace(null)}
+                    onClose={() => setSelectedEvent(null)}
                 />
             )}
         </div>

@@ -1,8 +1,29 @@
 import { useEffect, useState } from 'react';
-import { getCircuitImage } from '../data/circuitImages';
-import { CIRCUIT_STATS } from '../data/circuitStats';
-import { getSchedule, MAIN_SESSIONS } from '../data/schedules';
-import { getWinner } from '../data/winners';
+
+const SESSION_LABELS = {
+    practice: 'Treino Livre',
+    qualifying: 'Classificação',
+    sprint_qualifying: 'Classificação do Sprint',
+    sprint: 'Sprint',
+    race: 'Corrida',
+    warmup: 'Warm Up',
+};
+
+const MAIN_SESSION_TYPES = new Set(['race', 'sprint']);
+
+function sessionLabel(session) {
+    if (session.name) return session.name;
+    const base = SESSION_LABELS[session.type] ?? session.type;
+    return session.number ? `${base} ${session.number}` : base;
+}
+
+function sessionDay(iso) {
+    return new Date(iso).toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' });
+}
+
+function sessionTime(iso) {
+    return new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+}
 
 function StatBox({ label, value, sub }) {
     return (
@@ -14,12 +35,11 @@ function StatBox({ label, value, sub }) {
     );
 }
 
-export default function RaceModal({ race, category, categoryId, year, onClose }) {
+export default function RaceModal({ event, category, onClose }) {
     const [imgError, setImgError] = useState(false);
-    const circuitImageUrl = getCircuitImage(race.circuit);
-    const stats = CIRCUIT_STATS[race.circuit] ?? null;
-    const schedule = getSchedule(categoryId, race);
-    const winner = race.status === 'completed' ? getWinner(year, categoryId, race.round) : null;
+    const circuit = event.circuit;
+    const sessions = event.sessions ?? [];
+    const winner = event.status === 'finished' ? event.result : null;
 
     // Close on Escape, lock scroll
     useEffect(() => {
@@ -32,8 +52,8 @@ export default function RaceModal({ race, category, categoryId, year, onClose })
         };
     }, [onClose]);
 
-    const raceDate = new Date(race.date + 'T12:00:00');
-    const formattedDate = raceDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const formattedDate = new Date(event.starts_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+    const totalDistance = circuit.length_km && event.laps ? (circuit.length_km * event.laps).toFixed(1) : null;
 
     return (
         <div
@@ -61,10 +81,10 @@ export default function RaceModal({ race, category, categoryId, year, onClose })
                 {/* Circuit image hero */}
                 <div className="relative h-44 bg-zinc-950 flex items-center justify-center overflow-hidden rounded-t-2xl flex-shrink-0">
                     <div className="absolute inset-0 opacity-20" style={{ background: `radial-gradient(circle at center, ${category.color}, transparent 70%)` }} />
-                    {circuitImageUrl && !imgError ? (
+                    {circuit.map_image_url && !imgError ? (
                         <img
-                            src={circuitImageUrl}
-                            alt={race.circuit}
+                            src={circuit.map_image_url}
+                            alt={circuit.name}
                             onError={() => setImgError(true)}
                             className="w-full h-full object-contain p-6"
                             style={{ filter: 'brightness(0) invert(1) opacity(0.7)' }}
@@ -81,21 +101,21 @@ export default function RaceModal({ race, category, categoryId, year, onClose })
                 {/* Header info */}
                 <div className="px-6 pt-5 pb-4 border-b border-zinc-800">
                     <div className="flex items-start gap-4">
-                        <span className="text-4xl leading-none mt-1">{race.flag}</span>
+                        <span className="text-4xl leading-none mt-1">{circuit.flag}</span>
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                                 <span
                                     className="text-xs font-bold uppercase tracking-widest"
                                     style={{ color: category.color }}
                                 >
-                                    {category.shortName}
+                                    {category.short_name}
                                 </span>
                                 <span className="text-zinc-700">·</span>
-                                <span className="text-xs text-zinc-500 font-mono">Etapa {race.round}</span>
+                                <span className="text-xs text-zinc-500 font-mono">Etapa {event.round}</span>
                             </div>
-                            <h2 className="text-xl font-black text-white leading-tight">{race.name}</h2>
-                            <p className="text-sm text-zinc-400 mt-0.5">{race.circuit}</p>
-                            <p className="text-xs text-zinc-500 mt-1">{race.city}, {race.country} · {formattedDate}</p>
+                            <h2 className="text-xl font-black text-white leading-tight">{event.name}</h2>
+                            <p className="text-sm text-zinc-400 mt-0.5">{circuit.name}</p>
+                            <p className="text-xs text-zinc-500 mt-1">{circuit.city}, {circuit.country} · {formattedDate}</p>
                         </div>
                     </div>
                 </div>
@@ -134,11 +154,11 @@ export default function RaceModal({ race, category, categoryId, year, onClose })
                             Programação
                         </h3>
                         <div className="space-y-1.5">
-                            {schedule.map(({ session, day, time }) => {
-                                const isMain = MAIN_SESSIONS.has(session);
+                            {sessions.map((session) => {
+                                const isMain = MAIN_SESSION_TYPES.has(session.type);
                                 return (
                                     <div
-                                        key={session}
+                                        key={session.id}
                                         className={`flex items-center justify-between rounded-lg px-3 py-2 ${
                                             isMain
                                                 ? 'bg-zinc-800 ring-1 ring-zinc-600'
@@ -147,21 +167,24 @@ export default function RaceModal({ race, category, categoryId, year, onClose })
                                     >
                                         <div>
                                             <span className={`text-sm font-semibold ${isMain ? 'text-white' : 'text-zinc-300'}`}>
-                                                {session}
+                                                {sessionLabel(session)}
                                             </span>
-                                            <span className="block text-xs text-zinc-500 capitalize">{day}</span>
+                                            <span className="block text-xs text-zinc-500 capitalize">{sessionDay(session.starts_at)}</span>
                                         </div>
                                         <span
                                             className={`text-sm font-bold tabular-nums ${isMain ? 'text-white' : 'text-zinc-400'}`}
                                             style={isMain ? { color: category.color } : undefined}
                                         >
-                                            {time !== '–' ? time : <span className="text-zinc-600 font-normal text-xs">A confirmar</span>}
+                                            {sessionTime(session.starts_at)}
                                         </span>
                                     </div>
                                 );
                             })}
+                            {sessions.length === 0 && (
+                                <p className="text-sm text-zinc-600">Programação ainda não divulgada.</p>
+                            )}
                         </div>
-                        {schedule.some(s => s.time !== '–') && (
+                        {sessions.length > 0 && (
                             <p className="text-xs text-zinc-600 mt-2">* Horário local no circuito</p>
                         )}
                     </div>
@@ -171,43 +194,42 @@ export default function RaceModal({ race, category, categoryId, year, onClose })
                         <h3 className="text-xs font-bold uppercase tracking-widest text-zinc-500 mb-3">
                             Dados do Circuito
                         </h3>
-                        {stats ? (
-                            <div className="space-y-2">
-                                <div className="grid grid-cols-2 gap-2">
-                                    <StatBox label="Comprimento" value={`${stats.length} km`} />
-                                    {stats.laps && <StatBox label="Voltas" value={stats.laps} />}
-                                    <StatBox label="Curvas" value={stats.turns} />
-                                    {stats.drsZones > 0 && <StatBox label="Zonas DRS" value={stats.drsZones} />}
-                                    <StatBox label="Tipo" value={stats.type} />
-                                    <StatBox label="1º GP" value={stats.firstGP} />
+                        <div className="space-y-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                {circuit.length_km && <StatBox label="Comprimento" value={`${circuit.length_km} km`} />}
+                                {event.laps && <StatBox label="Voltas" value={event.laps} />}
+                                {circuit.number_of_turns && <StatBox label="Curvas" value={circuit.number_of_turns} />}
+                                {circuit.drs_zones > 0 && <StatBox label="Zonas DRS" value={circuit.drs_zones} />}
+                                {circuit.type && <StatBox label="Tipo" value={circuit.type} />}
+                                {circuit.first_event_year && <StatBox label="1ª Edição" value={circuit.first_event_year} />}
+                            </div>
+                            {circuit.lap_record && (
+                                <div className="bg-zinc-800/60 rounded-xl p-3">
+                                    <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold block mb-1">
+                                        Recorde de Volta
+                                    </span>
+                                    <span className="text-xl font-black text-white tabular-nums">
+                                        {circuit.lap_record.time}
+                                    </span>
+                                    <span className="text-xs text-zinc-400 block mt-0.5">
+                                        {circuit.lap_record.holder} · {circuit.lap_record.year}
+                                    </span>
                                 </div>
-                                {stats.record && (
-                                    <div className="bg-zinc-800/60 rounded-xl p-3">
-                                        <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold block mb-1">
-                                            Recorde de Volta
-                                        </span>
-                                        <span className="text-xl font-black text-white tabular-nums">
-                                            {stats.record.time}
-                                        </span>
-                                        <span className="text-xs text-zinc-400 block mt-0.5">
-                                            {stats.record.driver} · {stats.record.year}
-                                        </span>
-                                    </div>
-                                )}
-                                {stats.length && stats.laps && (
-                                    <div className="bg-zinc-800/40 rounded-xl px-3 py-2 flex items-center justify-between">
-                                        <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Distância total</span>
-                                        <span className="text-sm font-bold text-zinc-300">
-                                            {(stats.length * stats.laps).toFixed(1)} km
-                                        </span>
-                                    </div>
-                                )}
-                            </div>
-                        ) : (
-                            <div className="rounded-xl border border-zinc-800 bg-zinc-800/20 flex items-center justify-center h-32">
-                                <p className="text-zinc-600 text-sm">Dados não disponíveis</p>
-                            </div>
-                        )}
+                            )}
+                            {totalDistance && (
+                                <div className="bg-zinc-800/40 rounded-xl px-3 py-2 flex items-center justify-between">
+                                    <span className="text-xs text-zinc-500 uppercase tracking-wider font-semibold">Distância total</span>
+                                    <span className="text-sm font-bold text-zinc-300">
+                                        {totalDistance} km
+                                    </span>
+                                </div>
+                            )}
+                            {!circuit.length_km && !circuit.number_of_turns && (
+                                <div className="rounded-xl border border-zinc-800 bg-zinc-800/20 flex items-center justify-center h-32">
+                                    <p className="text-zinc-600 text-sm">Dados não disponíveis</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

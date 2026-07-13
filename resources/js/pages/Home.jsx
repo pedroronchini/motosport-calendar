@@ -1,6 +1,7 @@
+import { useEffect, useState } from 'react';
 import { useParams, Navigate } from 'react-router-dom';
-import { categories } from '../data/categories';
-import { AVAILABLE_YEARS, CURRENT_YEAR, getCalendar } from '../data/seasons';
+import { useYears } from '../context/YearsContext';
+import { fetchCategories } from '../api/client';
 import Header from '../components/Header';
 import CategoryCard from '../components/CategoryCard';
 import ThisWeekend from '../components/ThisWeekend';
@@ -8,12 +9,33 @@ import ThisWeekend from '../components/ThisWeekend';
 export default function Home() {
     const { year } = useParams();
     const yearNum = Number(year);
+    const { years, currentYear, loading: yearsLoading } = useYears();
+    const [categories, setCategories] = useState([]);
+    const [loading, setLoading] = useState(true);
 
-    if (!AVAILABLE_YEARS.includes(yearNum)) {
-        return <Navigate to={`/${CURRENT_YEAR}`} replace />;
+    const yearIsKnown = years.length === 0 || years.includes(yearNum);
+
+    useEffect(() => {
+        if (yearsLoading || !yearIsKnown) return;
+        let cancelled = false;
+        setLoading(true);
+        fetchCategories(yearNum)
+            .then((data) => !cancelled && setCategories(data))
+            .finally(() => !cancelled && setLoading(false));
+        return () => {
+            cancelled = true;
+        };
+    }, [yearNum, yearsLoading, yearIsKnown]);
+
+    if (yearsLoading) {
+        return <div className="min-h-screen bg-zinc-950" />;
     }
 
-    const isCurrentYear = yearNum === CURRENT_YEAR;
+    if (!yearIsKnown) {
+        return <Navigate to={`/${currentYear}`} replace />;
+    }
+
+    const isCurrentYear = yearNum === currentYear;
 
     return (
         <div className="min-h-screen bg-zinc-950 text-white">
@@ -36,19 +58,20 @@ export default function Home() {
 
                 {isCurrentYear && <ThisWeekend />}
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-                    {categories.map((category) => {
-                        const cal = getCalendar(yearNum, category.id);
-                        return (
+                {loading ? (
+                    <div className="text-zinc-500">Carregando categorias...</div>
+                ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                        {categories.map((category) => (
                             <CategoryCard
-                                key={category.id}
+                                key={category.slug}
                                 category={category}
                                 year={yearNum}
-                                hasData={Array.isArray(cal) && cal.length > 0}
+                                hasData={!!category.has_calendar}
                             />
-                        );
-                    })}
-                </div>
+                        ))}
+                    </div>
+                )}
             </main>
 
             <footer className="border-t border-zinc-800 mt-16 py-8 text-center text-zinc-500 text-sm">

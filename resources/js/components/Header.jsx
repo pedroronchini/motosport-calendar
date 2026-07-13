@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AVAILABLE_YEARS, CURRENT_YEAR, hasAnyData } from '../data/seasons';
+import { useYears } from '../context/YearsContext';
 
 export default function Header({ year, backTo, backLabel }) {
     const navigate = useNavigate();
+    const { years, currentYear } = useYears();
     const [open, setOpen] = useState(false);
     const dropdownRef = useRef(null);
 
@@ -84,22 +85,18 @@ export default function Header({ year, backTo, backLabel }) {
                                     Temporada
                                 </span>
                             </div>
-                            {AVAILABLE_YEARS.map((y) => {
+                            {years.map((y) => {
                                 const isActive = y === Number(year);
-                                const hasSeason = hasAnyData(y);
-                                const isCurrent = y === CURRENT_YEAR;
+                                const isCurrent = y === currentYear;
 
                                 return (
                                     <button
                                         key={y}
                                         onClick={() => handleYearSelect(y)}
-                                        disabled={!hasSeason && !isActive}
                                         className={`w-full flex items-center justify-between px-3 py-2.5 text-sm transition-colors
                                             ${isActive
                                                 ? 'bg-zinc-700 text-white font-bold'
-                                                : hasSeason
-                                                    ? 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
-                                                    : 'text-zinc-600 cursor-not-allowed'
+                                                : 'text-zinc-300 hover:bg-zinc-800 hover:text-white'
                                             }`}
                                     >
                                         <div className="flex items-center gap-2">
@@ -108,14 +105,9 @@ export default function Header({ year, backTo, backLabel }) {
                                             )}
                                             <span className={isActive ? '' : 'ml-3.5'}>{y}</span>
                                         </div>
-                                        <div className="flex items-center gap-1.5">
-                                            {isCurrent && (
-                                                <span className="text-xs text-emerald-400 font-semibold">atual</span>
-                                            )}
-                                            {!hasSeason && (
-                                                <span className="text-xs text-zinc-600">em breve</span>
-                                            )}
-                                        </div>
+                                        {isCurrent && (
+                                            <span className="text-xs text-emerald-400 font-semibold">atual</span>
+                                        )}
                                     </button>
                                 );
                             })}
