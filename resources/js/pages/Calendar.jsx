@@ -68,7 +68,7 @@ function RaceCard({ event, category, isNext, onClick }) {
         >
             {/* Top accent bar */}
             <div
-                className="h-1 w-full flex-shrink-0"
+                className="h-1 w-full shrink-0"
                 style={{ backgroundColor: isNext ? '#ffffff44' : category.color }}
             />
 

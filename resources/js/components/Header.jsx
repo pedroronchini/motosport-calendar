@@ -47,7 +47,7 @@ export default function Header({ year, backTo, backLabel }) {
                     onClick={() => navigate(`/${year}`)}
                     className="flex items-center gap-2 hover:opacity-80 transition-opacity"
                 >
-                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-red-500 to-orange-400 flex items-center justify-center flex-shrink-0">
+                    <div className="w-7 h-7 rounded-full bg-linear-to-br from-red-500 to-orange-400 flex items-center justify-center shrink-0">
                         <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24">
                             <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 14.5v-9l6 4.5-6 4.5z" />
                         </svg>
@@ -101,7 +101,7 @@ export default function Header({ year, backTo, backLabel }) {
                                     >
                                         <div className="flex items-center gap-2">
                                             {isActive && (
-                                                <span className="w-1.5 h-1.5 rounded-full bg-white flex-shrink-0" />
+                                                <span className="w-1.5 h-1.5 rounded-full bg-white shrink-0" />
                                             )}
                                             <span className={isActive ? '' : 'ml-3.5'}>{y}</span>
                                         </div>

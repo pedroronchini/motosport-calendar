@@ -79,7 +79,7 @@ export default function RaceModal({ event, category, onClose }) {
                 </button>
 
                 {/* Circuit image hero */}
-                <div className="relative h-44 bg-zinc-950 flex items-center justify-center overflow-hidden rounded-t-2xl flex-shrink-0">
+                <div className="relative h-44 bg-zinc-950 flex items-center justify-center overflow-hidden rounded-t-2xl shrink-0">
                     <div className="absolute inset-0 opacity-20" style={{ background: `radial-gradient(circle at center, ${category.color}, transparent 70%)` }} />
                     {circuit.map_image_url && !imgError ? (
                         <img
@@ -128,7 +128,7 @@ export default function RaceModal({ event, category, onClose }) {
                     >
                         <div className="flex items-center gap-4 px-5 py-4">
                             <div
-                                className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 text-lg"
+                                className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-lg"
                                 style={{ backgroundColor: category.color + '30' }}
                             >
                                 🏆

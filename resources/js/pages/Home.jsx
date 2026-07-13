@@ -45,7 +45,7 @@ export default function Home() {
                 <div className="mb-10">
                     <h1 className="text-4xl sm:text-5xl font-black tracking-tight text-white mb-3">
                         Calendários{' '}
-                        <span className="text-transparent bg-clip-text bg-gradient-to-r from-red-400 to-orange-400">
+                        <span className="text-transparent bg-clip-text bg-linear-to-r from-red-400 to-orange-400">
                             {yearNum}
                         </span>
                     </h1>
