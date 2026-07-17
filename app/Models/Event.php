@@ -77,4 +77,14 @@ class Event extends Model
     {
         return $this->hasOne(EventResult::class);
     }
+
+    /**
+     * Resultados por classe/corrida (F2 sprint+feature, endurance por classe).
+     *
+     * @return HasMany<EventResult, $this>
+     */
+    public function results(): HasMany
+    {
+        return $this->hasMany(EventResult::class);
+    }
 }

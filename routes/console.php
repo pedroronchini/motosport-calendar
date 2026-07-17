@@ -12,3 +12,6 @@ Artisan::command('inspire', function () {
 // mudanças de horário/status após os fins de semana de corrida.
 // Requer o scheduler ativo no servidor: `* * * * * php artisan schedule:run`.
 Schedule::command('scrape:f1 --current')->weeklyOn(2, '05:00')->withoutOverlapping();
+
+// Horários escalonados para não bater todas as fontes ao mesmo tempo.
+Schedule::command('scrape:f2 --current')->weeklyOn(2, '05:30')->withoutOverlapping();

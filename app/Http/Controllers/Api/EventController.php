@@ -15,7 +15,7 @@ class EventController extends Controller
         $season = $championship->seasons()->where('year', $year)->firstOrFail();
 
         $events = $season->events()
-            ->with(['circuit', 'sessions', 'result'])
+            ->with(['circuit', 'sessions', 'result', 'results'])
             ->orderBy('round')
             ->get();
 
@@ -24,7 +24,7 @@ class EventController extends Controller
 
     public function show(Event $event): EventResource
     {
-        $event->load(['circuit', 'sessions', 'result', 'season.championship']);
+        $event->load(['circuit', 'sessions', 'result', 'results', 'season.championship']);
 
         return new EventResource($event);
     }

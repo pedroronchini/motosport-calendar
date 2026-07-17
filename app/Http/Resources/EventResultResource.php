@@ -13,6 +13,7 @@ class EventResultResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
+            'class' => $this->class,
             'team' => $this->team,
             'drivers' => $this->drivers,
         ];

@@ -26,6 +26,7 @@ class EventResource extends JsonResource
             'circuit' => new CircuitResource($this->whenLoaded('circuit')),
             'sessions' => EventSessionResource::collection($this->whenLoaded('sessions')),
             'result' => $this->whenLoaded('result', fn () => $this->result ? new EventResultResource($this->result) : null),
+            'results' => EventResultResource::collection($this->whenLoaded('results')),
             'championship' => $this->whenLoaded('season', fn () => [
                 'id' => $this->season->championship->id,
                 'slug' => $this->season->championship->slug,

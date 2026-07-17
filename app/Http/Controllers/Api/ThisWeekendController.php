@@ -26,7 +26,7 @@ class ThisWeekendController extends Controller
 
         $events = Event::whereHas('season', fn ($query) => $query->where('is_current', true))
             ->whereBetween('starts_at', [$friday->copy()->startOfDay(), $sunday->copy()->endOfDay()])
-            ->with(['circuit', 'sessions', 'result', 'season.championship'])
+            ->with(['circuit', 'sessions', 'result', 'results', 'season.championship'])
             ->orderBy('starts_at')
             ->get();
 
