@@ -15,3 +15,4 @@ Schedule::command('scrape:f1 --current')->weeklyOn(2, '05:00')->withoutOverlappi
 
 // Horários escalonados para não bater todas as fontes ao mesmo tempo.
 Schedule::command('scrape:f2 --current')->weeklyOn(2, '05:30')->withoutOverlapping();
+Schedule::command('scrape:f3 --current')->weeklyOn(2, '06:00')->withoutOverlapping();
